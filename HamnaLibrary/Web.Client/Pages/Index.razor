@@ -1,0 +1,107 @@
+﻿@page "/"
+@using Web.Client.Models
+@inject NavigationManager NavigationManager
+
+<PageTitle>Game Catalog</PageTitle>
+
+<h1>Game Catalog</h1>
+
+<div class="row mb-4">
+    <div class="col-sm-6">
+        <button type="button" class="btn btn-primary" @onclick="CreateGame">New Game</button>
+    </div>
+</div>
+
+@if (games is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <DeleteGame Game="@currentGame" OnClose="@OnDeleteModalClose">
+    </DeleteGame>
+
+    <table class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Genre</th>
+                <th class="text-end">Price</th>
+                <th>Release Date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var game in games)
+            {
+                <tr>
+                    <td>@game.Id</td>
+                    <td>@game.Name</td>
+                    <td>@game.Genre</td>
+                    <td class="text-end">@game.Price.ToString("C2")</td>
+                    <td>@game.ReleaseDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="(() => EditGame(game.Id))">
+                            <i class="oi oi-pencil"></i>
+                        </button>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                @onclick="(() => currentGame = game)">
+                            <i class="oi oi-x"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    @using System.Net.Http
+    @using System.Text
+    @using System.Net.Http.Json
+    @using System.Web
+    @using Newtonsoft.Json.Linq
+    @using Newtonsoft.Json
+
+    private List<Game> games = new();
+    private Game? currentGame;
+
+    protected override async Task OnInitializedAsync()
+    {
+        games = await GetGames();
+        StateHasChanged();
+    }
+
+    private void CreateGame()
+    {
+        NavigationManager.NavigateTo("/game");
+    }
+
+    private void EditGame(int id)
+    {
+        NavigationManager.NavigateTo($"/game/{id}");
+    }
+
+    private async Task OnDeleteModalClose(bool accepted)
+    {
+        if (accepted)
+        {
+            WebClient.DeleteGame(currentGame!.Id);
+            games = await GetGames();
+        }
+    }
+
+    private async Task<List<Game>> GetGames()
+    {
+        using var client = new HttpClient();
+        var result = await client.GetStringAsync("https://localhost:7123/Game");
+
+        if(result == null)
+        {
+            throw new Exception("Could not find game!");
+        }
+
+        return JsonConvert.DeserializeObject<List<Game>>(result);
+    }
+}
